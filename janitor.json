@@ -1,0 +1,290 @@
+{
+  "name": "Gmail Janitor",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "everyInterval",
+        "interval": 2,
+        "unit": "hours"
+      },
+      "name": "Cada 2 Horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        400,
+        300
+      ],
+      "id": "ScheduleTrigger"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {
+          "labelIds": [
+            "TRASH"
+          ]
+        },
+        "simplify": true
+      },
+      "name": "1. Get Trash",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        600,
+        200
+      ],
+      "id": "GetTrash",
+      "credentials": {
+        "gmailOAuth2Api": {
+          "id": "RECONECTAR_CREDENCIAL",
+          "name": "Google API - Ed"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {
+          "labelIds": [
+            "SPAM"
+          ]
+        },
+        "simplify": true
+      },
+      "name": "2. Get Spam",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        600,
+        400
+      ],
+      "id": "GetSpam",
+      "credentials": {
+        "gmailOAuth2Api": {
+          "id": "RECONECTAR_CREDENCIAL",
+          "name": "Google API - Ed"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "delete",
+        "messageId": "={{$json.id}}"
+      },
+      "name": "Delete Trash Msg",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        800,
+        200
+      ],
+      "id": "DeleteTrash",
+      "credentials": {
+        "gmailOAuth2Api": {
+          "id": "RECONECTAR_CREDENCIAL",
+          "name": "Google API - Ed"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "delete",
+        "messageId": "={{$json.id}}"
+      },
+      "name": "Delete Spam Msg",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        800,
+        400
+      ],
+      "id": "DeleteSpam",
+      "credentials": {
+        "gmailOAuth2Api": {
+          "id": "RECONECTAR_CREDENCIAL",
+          "name": "Google API - Ed"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "wait"
+      },
+      "name": "Wait for Both",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ],
+      "id": "WaitForBoth"
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ \n  count_trash: $items(\"1. Get Trash\").length, \n  count_spam: $items(\"2. Get Spam\").length \n}];"
+      },
+      "name": "Count Summary",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        300
+      ],
+      "id": "CountSummary"
+    },
+    {
+      "parameters": {
+        "combine": "OR",
+        "conditions": [
+          {
+            "value1": "={{$json.count_trash}}",
+            "value2": 0,
+            "operation": "larger"
+          },
+          {
+            "value1": "={{$json.count_spam}}",
+            "value2": 0,
+            "operation": "larger"
+          }
+        ]
+      },
+      "name": "IF > 0 Deletes? (OR)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        300
+      ],
+      "id": "IfCount"
+    },
+    {
+      "parameters": {
+        "message": "={{`🧹 Janitor Report\\n• Trash: ${$json.count_trash}\\n• Spam: ${$json.count_spam}\\n• Total: ${$json.count_trash + $json.count_spam}\\n• Time: ${$now}`}}",
+        "title": "Janitor Limpieza completada",
+        "priority": 0
+      },
+      "name": "Pushover Notif",
+      "type": "n8n-nodes-base.pushover",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        300
+      ],
+      "id": "Pushover",
+      "credentials": {
+        "pushoverApi": {
+          "id": "RECONECTAR_CREDENCIAL",
+          "name": "Pushover - Ed"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "ScheduleTrigger": {
+      "main": [
+        [
+          {
+            "node": "GetTrash",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GetSpam",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetTrash": {
+      "main": [
+        [
+          {
+            "node": "DeleteTrash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetSpam": {
+      "main": [
+        [
+          {
+            "node": "DeleteSpam",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeleteTrash": {
+      "main": [
+        [
+          {
+            "node": "WaitForBoth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeleteSpam": {
+      "main": [
+        [
+          {
+            "node": "WaitForBoth",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "WaitForBoth": {
+      "main": [
+        [
+          {
+            "node": "CountSummary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CountSummary": {
+      "main": [
+        [
+          {
+            "node": "IfCount",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfCount": {
+      "main": [
+        [
+          {
+            "node": "Pushover",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "janitor-v1.117.2-SIMPLE-CLEAN-2H"
+}
