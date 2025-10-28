@@ -210,10 +210,6 @@ Si encuentras algún problema:
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
 
-## ⭐ ¿Te gusta este proyecto?
-
-Si este workflow te ha sido útil, ¡dale una estrella! ⭐
-
 ---
 
 **¡Mantén tu Gmail limpio y organizado con Gmail Janitor! 🧹✨**
